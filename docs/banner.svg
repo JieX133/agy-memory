@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="agy-memory: Zero-API-Key Compaction Guard and Lossless Local Memory for Google Antigravity">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0D1117"/>
+      <stop offset="100%" stop-color="#131B26"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1E2A3A" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="320" rx="12" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="12" fill="url(#grid)" opacity="0.55"/>
+  <rect x="0.5" y="0.5" width="1199" height="319" rx="12" fill="none" stroke="#263447"/>
+
+  <!-- Left Signal Accent Bar -->
+  <rect x="56" y="54" width="4" height="212" rx="2" fill="#3B82F6"/>
+
+  <!-- Title & Subtitle -->
+  <text x="82" y="102" fill="#93C5FD" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" letter-spacing="2.2">GOOGLE ANTIGRAVITY · HOOKS + SQLITE FTS5 + MCP</text>
+  <text x="80" y="160" fill="#F8FAFC" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="54" font-weight="700" letter-spacing="-1">agy-memory</text>
+  <text x="82" y="198" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19">Zero-API-key compaction guard, Q&amp;A continuity, and lossless session recall.</text>
+
+  <!-- Feature Pills -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5">
+    <rect x="82" y="226" width="142" height="30" rx="6" fill="#172233" stroke="#2D4363"/>
+    <text x="153" y="245" fill="#E2E8F0" text-anchor="middle">Zero LLM Keys</text>
+
+    <rect x="236" y="226" width="160" height="30" rx="6" fill="#172233" stroke="#2D4363"/>
+    <text x="316" y="245" fill="#E2E8F0" text-anchor="middle">SQLite WAL + FTS5</text>
+
+    <rect x="408" y="226" width="176" height="30" rx="6" fill="#172233" stroke="#2D4363"/>
+    <text x="496" y="245" fill="#E2E8F0" text-anchor="middle">Thread-Private Scope</text>
+
+    <rect x="596" y="226" width="130" height="30" rx="6" fill="#172233" stroke="#2D4363"/>
+    <text x="661" y="245" fill="#E2E8F0" text-anchor="middle">TTL Decay</text>
+  </g>
+
+  <!-- Right Minimal Architecture Schematic -->
+  <g transform="translate(790, 48)">
+    <rect x="0" y="0" width="352" height="224" rx="10" fill="#0A0F16" stroke="#263447"/>
+
+    <!-- Layer 1 -->
+    <rect x="18" y="20" width="316" height="48" rx="6" fill="#132033" stroke="#3B82F6"/>
+    <text x="32" y="40" fill="#93C5FD" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600">PreInvocation / Stop Hook</text>
+    <text x="32" y="57" fill="#CBD5E1" font-family="ui-monospace, monospace" font-size="11">O(delta) seek · 380k warn · CP recovery</text>
+
+    <!-- Connector -->
+    <line x1="176" y1="68" x2="176" y2="88" stroke="#3B82F6" stroke-width="1.5"/>
+    <polygon points="171,84 181,84 176,90" fill="#3B82F6"/>
+
+    <!-- Layer 2 -->
+    <rect x="18" y="90" width="316" height="48" rx="6" fill="#111C2B" stroke="#2D4363"/>
+    <text x="32" y="110" fill="#E2E8F0" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600">SQLite WAL + FTS5 Store</text>
+    <text x="32" y="127" fill="#94A3B8" font-family="ui-monospace, monospace" font-size="11">session:* private | workspace TTL | Q&amp;A</text>
+
+    <!-- Connector -->
+    <line x1="176" y1="138" x2="176" y2="158" stroke="#475569" stroke-width="1.5"/>
+    <polygon points="171,154 181,154 176,160" fill="#475569"/>
+
+    <!-- Layer 3 -->
+    <rect x="18" y="160" width="316" height="46" rx="6" fill="#0F1722" stroke="#334155"/>
+    <text x="32" y="180" fill="#CBD5E1" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600">8-Tool Stdio MCP Server</text>
+    <text x="32" y="196" fill="#94A3B8" font-family="ui-monospace, monospace" font-size="11">pin · search_sessions · search_transcript</text>
+  </g>
+</svg>

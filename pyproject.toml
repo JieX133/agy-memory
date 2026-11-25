@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agy-memory"
+version = "0.3.0"
+description = "Lightweight, zero-API-key compaction guard and lossless local SQLite FTS5 memory layer for Google Antigravity"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "JieX133" }]
+keywords = ["antigravity", "mcp", "agent-memory", "compaction", "sqlite", "fts5", "hooks"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "mcp>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/JieX133/agy-memory"
+Repository = "https://github.com/JieX133/agy-memory"
+Issues = "https://github.com/JieX133/agy-memory/issues"
+
+[project.scripts]
+agy-memory = "agy_memory.cli:main"
+agy-memory-hook = "agy_memory.hook:main"
+agy-memory-mcp = "agy_memory.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
