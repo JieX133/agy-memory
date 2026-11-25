@@ -1,4 +1,4 @@
-"""agy-memory: Local lossless session recall & structured decision MCP server (stdio)."""
+"""agy-memory: Zero-dependency stdio JSON-RPC 2.0 MCP server for lossless session recall & decisions."""
 
 from __future__ import annotations
 
@@ -7,13 +7,9 @@ import re
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from mcp.server.fastmcp import FastMCP
-
-from . import store
-
-mcp = FastMCP("agy-memory")
+from . import __version__, store
 
 
 def _find_transcript(conversation_id: str, full: bool = True) -> Path | None:
@@ -65,7 +61,6 @@ def _row_matches_workspace(ws_norm: str, fts_ws: str, uris_json: str) -> tuple[b
     return False, display
 
 
-@mcp.tool()
 def pin_decision(
     title: str,
     content: str,
@@ -74,16 +69,6 @@ def pin_decision(
     conversation_id: str = "",
     ttl_days: int = -1,
 ) -> str:
-    """Save or update an incremental decision/veto (avoid duplicating GEMINI.md/AGENTS.md).
-
-    - category: 'veto' | 'architecture' | 'decision' | 'preference' | 'lesson'
-    - scope:
-        * 'session' (requires conversation_id) or 'session:<conversation_id>': private to this thread only;
-          restored only when THIS thread compacts, never leaks to parallel threads.
-        * workspace path (e.g. '/path/to/repo' or 'c:/my-repo'): shared across main threads in that workspace.
-        * 'global': shared across all workspaces.
-    - ttl_days: -1 uses default (14d veto/architecture/preference, 7d decision/lesson); 0 = never expire.
-    """
     conn = store.connect_db()
     try:
         try:
@@ -94,7 +79,7 @@ def pin_decision(
                 category=category,
                 scope=scope,
                 source_conversation_id=conversation_id,
-                ttl_days=ttl_days,
+                ttl_days=int(ttl_days),
             )
         except ValueError as e:
             return json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False)
@@ -103,7 +88,6 @@ def pin_decision(
         conn.close()
 
 
-@mcp.tool()
 def list_decisions(
     scope: str = "",
     conversation_id: str = "",
@@ -113,11 +97,6 @@ def list_decisions(
     include_expired: bool = False,
     limit: int = 30,
 ) -> str:
-    """List pinned decisions for a scope.
-
-    Pass scope='session' + conversation_id (or scope='session:<cid>') to inspect thread-private pins only.
-    Workspace and default queries never return other threads' session-private pins.
-    """
     conn = store.connect_db()
     try:
         now_iso = store.utc_now()
@@ -154,7 +133,7 @@ def list_decisions(
             f"ORDER BY CASE category WHEN 'veto' THEN 0 WHEN 'architecture' THEN 1 WHEN 'decision' THEN 2 WHEN 'preference' THEN 3 ELSE 4 END, updated_at DESC "
             f"LIMIT ?"
         )
-        params.append(max(1, min(limit, 100)))
+        params.append(max(1, min(int(limit), 100)))
         rows = []
         for r in conn.execute(sql, params).fetchall():
             d = dict(r)
@@ -166,34 +145,31 @@ def list_decisions(
         conn.close()
 
 
-@mcp.tool()
 def retire_decision(decision_id: int, reason: str = "") -> str:
-    """Deactivate an outdated or superseded decision by its numeric ID."""
     conn = store.connect_db()
     try:
-        row = conn.execute("SELECT id, title, content FROM decisions WHERE id=?", (decision_id,)).fetchone()
+        did = int(decision_id)
+        row = conn.execute("SELECT id, title, content FROM decisions WHERE id=?", (did,)).fetchone()
         if not row:
-            return json.dumps({"ok": False, "error": f"Decision #{decision_id} not found"}, ensure_ascii=False)
+            return json.dumps({"ok": False, "error": f"Decision #{did} not found"}, ensure_ascii=False)
         new_content = row["content"]
         if reason:
             new_content = f"{new_content} [retired: {reason.strip()}]"
         conn.execute(
             "UPDATE decisions SET active=0, content=?, updated_at=? WHERE id=?",
-            (new_content, store.utc_now(), decision_id),
+            (new_content, store.utc_now(), did),
         )
         conn.commit()
-        return json.dumps({"ok": True, "id": decision_id, "title": row["title"], "active": 0}, ensure_ascii=False)
+        return json.dumps({"ok": True, "id": did, "title": row["title"], "active": 0}, ensure_ascii=False)
     finally:
         conn.close()
 
 
-@mcp.tool()
 def search_sessions(query: str, workspace: str = "", limit: int = 10) -> str:
-    """Search across all historical Antigravity sessions (via native FTS5) and pinned decisions."""
     q = (query or "").strip()
     if not q:
         return json.dumps({"error": "query must not be empty"}, ensure_ascii=False)
-    lim = max(1, min(limit, 30))
+    lim = max(1, min(int(limit), 30))
     ws_norm = store.normalize_scope(workspace) if workspace else ""
     out: dict[str, Any] = {"query": q, "workspace_filter": ws_norm, "decisions": [], "sessions": []}
 
@@ -316,9 +292,7 @@ def search_sessions(query: str, workspace: str = "", limit: int = 10) -> str:
     return json.dumps(out, ensure_ascii=False, indent=2)
 
 
-@mcp.tool()
 def get_session_brief(conversation_id: str, tail_turns: int = 6) -> str:
-    """Return a structured brief of any session: all user requests (uncapped), compactions, modified files, and tail turns."""
     tp = _find_transcript(conversation_id, full=False)
     if not tp:
         return json.dumps({"error": f"Transcript not found for {conversation_id}"}, ensure_ascii=False)
@@ -354,7 +328,7 @@ def get_session_brief(conversation_id: str, tail_turns: int = 6) -> str:
         elif stype == "CHECKPOINT":
             checkpoints.append(step)
 
-    n = max(1, min(tail_turns, 20))
+    n = max(1, min(int(tail_turns), 20))
     return json.dumps(
         {
             "conversation_id": tp.parent.parent.parent.name,
@@ -370,9 +344,7 @@ def get_session_brief(conversation_id: str, tail_turns: int = 6) -> str:
     )
 
 
-@mcp.tool()
 def search_transcript(conversation_id: str, query: str, max_hits: int = 10) -> str:
-    """Lossless verbatim search inside a conversation's full transcript."""
     tp = _find_transcript(conversation_id, full=True)
     if not tp:
         return json.dumps({"error": f"Transcript not found for {conversation_id}"}, ensure_ascii=False)
@@ -380,7 +352,7 @@ def search_transcript(conversation_id: str, query: str, max_hits: int = 10) -> s
     if not q:
         return json.dumps({"error": "query must not be empty"}, ensure_ascii=False)
     ql = q.lower()
-    lim = max(1, min(max_hits, 25))
+    lim = max(1, min(int(max_hits), 25))
     hits: list[dict[str, Any]] = []
 
     with tp.open("r", encoding="utf-8", errors="replace") as f:
@@ -415,9 +387,7 @@ def search_transcript(conversation_id: str, query: str, max_hits: int = 10) -> s
     )
 
 
-@mcp.tool()
 def get_transcript_steps(conversation_id: str, start_step: int, end_step: int, max_chars: int = 8000) -> str:
-    """Read verbatim steps [start_step..end_step] from a conversation's full transcript (bounded output)."""
     tp = _find_transcript(conversation_id, full=True)
     if not tp:
         return json.dumps({"error": f"Transcript not found for {conversation_id}"}, ensure_ascii=False)
@@ -468,9 +438,7 @@ def get_transcript_steps(conversation_id: str, start_step: int, end_step: int, m
     )
 
 
-@mcp.tool()
 def memory_status() -> str:
-    """Return health metrics of the agy-memory SQLite store and recent hook latencies."""
     conn = store.connect_db()
     try:
         now_iso = store.utc_now()
@@ -507,6 +475,199 @@ def memory_status() -> str:
         conn.close()
 
 
+TOOL_SPECS: list[dict[str, Any]] = [
+    {
+        "name": "pin_decision",
+        "description": (
+            "Save or update an incremental decision/veto (avoid duplicating GEMINI.md/AGENTS.md). "
+            "Use scope='session' (with conversation_id) for thread-private specs that never leak to parallel threads, "
+            "or workspace path / 'global' for shared decisions (7-14d default TTL + conflict detection)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Short decision title"},
+                "content": {"type": "string", "description": "Decision or constraint details"},
+                "category": {
+                    "type": "string",
+                    "enum": ["veto", "architecture", "decision", "preference", "lesson"],
+                    "default": "decision",
+                },
+                "scope": {"type": "string", "default": "global", "description": "'session', 'session:<cid>', workspace path, or 'global'"},
+                "conversation_id": {"type": "string", "default": "", "description": "Required when scope='session'"},
+                "ttl_days": {"type": "integer", "default": -1, "description": "-1 = category default (7d/14d); 0 = never expire"},
+            },
+            "required": ["title", "content"],
+        },
+    },
+    {
+        "name": "list_decisions",
+        "description": "List active decisions for a scope. Pass scope='session' + conversation_id for thread-private pins; workspace queries never return other threads' private pins.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "string", "default": ""},
+                "conversation_id": {"type": "string", "default": ""},
+                "category": {"type": "string", "default": ""},
+                "include_global": {"type": "boolean", "default": True},
+                "active_only": {"type": "boolean", "default": True},
+                "include_expired": {"type": "boolean", "default": False},
+                "limit": {"type": "integer", "default": 30},
+            },
+        },
+    },
+    {
+        "name": "retire_decision",
+        "description": "Deactivate an outdated or superseded decision by its numeric ID.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "decision_id": {"type": "integer"},
+                "reason": {"type": "string", "default": ""},
+            },
+            "required": ["decision_id"],
+        },
+    },
+    {
+        "name": "search_sessions",
+        "description": "Search across all historical Antigravity sessions (via native FTS5) and pinned decisions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "workspace": {"type": "string", "default": ""},
+                "limit": {"type": "integer", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_session_brief",
+        "description": "Return a structured brief of any session: all user requests (uncapped), compaction steps, modified files, and tail turns.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {"type": "string"},
+                "tail_turns": {"type": "integer", "default": 6},
+            },
+            "required": ["conversation_id"],
+        },
+    },
+    {
+        "name": "search_transcript",
+        "description": "Lossless verbatim search inside a conversation's full transcript.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {"type": "string"},
+                "query": {"type": "string"},
+                "max_hits": {"type": "integer", "default": 10},
+            },
+            "required": ["conversation_id", "query"],
+        },
+    },
+    {
+        "name": "get_transcript_steps",
+        "description": "Read verbatim steps [start_step..end_step] from a conversation's full transcript (bounded output).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {"type": "string"},
+                "start_step": {"type": "integer"},
+                "end_step": {"type": "integer"},
+                "max_chars": {"type": "integer", "default": 8000},
+            },
+            "required": ["conversation_id", "start_step", "end_step"],
+        },
+    },
+    {
+        "name": "memory_status",
+        "description": "Return health metrics of the agy-memory SQLite store and recent hook latencies.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+]
+
+TOOL_HANDLERS: dict[str, Callable[..., str]] = {
+    "pin_decision": pin_decision,
+    "list_decisions": list_decisions,
+    "retire_decision": retire_decision,
+    "search_sessions": search_sessions,
+    "get_session_brief": get_session_brief,
+    "search_transcript": search_transcript,
+    "get_transcript_steps": get_transcript_steps,
+    "memory_status": memory_status,
+}
+
+
+def _send(obj: dict[str, Any]) -> None:
+    sys.stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
+def _handle_message(msg: dict[str, Any]) -> dict[str, Any] | None:
+    method = msg.get("method")
+    req_id = msg.get("id")
+    params = msg.get("params") or {}
+
+    # Notifications (no id) require no response
+    if req_id is None:
+        return None
+
+    if method == "initialize":
+        client_ver = str(params.get("protocolVersion") or "2024-11-05")
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": client_ver,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": "agy-memory", "version": __version__},
+            },
+        }
+
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {}}
+
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"tools": TOOL_SPECS}}
+
+    if method == "resources/list":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"resources": []}}
+
+    if method == "prompts/list":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"prompts": []}}
+
+    if method == "tools/call":
+        name = str(params.get("name") or "")
+        arguments = params.get("arguments") or {}
+        fn = TOOL_HANDLERS.get(name)
+        if fn is None:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {"code": -32602, "message": f"Unknown tool: {name}"},
+            }
+        try:
+            text = fn(**arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"content": [{"type": "text", "text": text}], "isError": False},
+            }
+        except Exception as e:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"content": [{"type": "text", "text": json.dumps({"error": str(e)}, ensure_ascii=False)}], "isError": True},
+            }
+
+    return {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
+    }
+
+
 def main() -> None:
     try:
         if hasattr(sys.stdin, "reconfigure"):
@@ -515,7 +676,20 @@ def main() -> None:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-    mcp.run(transport="stdio")
+
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except Exception as e:
+            _send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": f"Parse error: {e}"}})
+            continue
+        if isinstance(msg, dict):
+            resp = _handle_message(msg)
+            if resp is not None:
+                _send(resp)
 
 
 if __name__ == "__main__":

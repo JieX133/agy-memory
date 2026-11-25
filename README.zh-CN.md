@@ -14,7 +14,7 @@
 
 **`agy-memory`** 是面向 **Google Antigravity**（`Antigravity 2.0` / `agy` CLI）的轻量级本地压缩防失忆钩子与无损记忆检索层。
 
-核心层仅依赖 **Python 标准库 + 本地 SQLite（WAL + FTS5）+ 标准 stdio MCP 服务**——**零外部 LLM API Key、零云端账号、零后台常驻观察器进程**。
+核心层**100% 纯 Python 标准库 + 本地 SQLite（WAL + FTS5）**（含内置零依赖 stdio JSON-RPC 2.0 MCP 服务）——**零第三方运行时依赖、零外部 LLM API Key、零云端账号、零后台常驻观察器进程**。
 
 ---
 

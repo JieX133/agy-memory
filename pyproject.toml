@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agy-memory"
-version = "0.3.0"
-description = "Lightweight, zero-API-key compaction guard and lossless local SQLite FTS5 memory layer for Google Antigravity"
+version = "0.3.1"
+description = "Lightweight, zero-dependency, zero-API-key compaction guard and lossless local SQLite FTS5 memory layer for Google Antigravity"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
@@ -22,9 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
-dependencies = [
-    "mcp>=1.0.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

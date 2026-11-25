@@ -118,13 +118,6 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         fts5_ok = True
     except Exception:
         pass
-    mcp_ok = False
-    try:
-        import mcp  # noqa: F401
-        mcp_ok = True
-    except Exception:
-        pass
-
     hooks_path = _default_hooks_path()
     hook_wired = False
     if hooks_path.exists():
@@ -153,7 +146,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         "python": sys.version.split()[0],
         "sqlite": sqlite3.sqlite_version,
         "fts5": fts5_ok,
-        "mcp_sdk": mcp_ok,
+        "third_party_deps": 0,
         "hooks_config": str(hooks_path),
         "memory_guard_wired": hook_wired,
         "db_path": str(db_path),

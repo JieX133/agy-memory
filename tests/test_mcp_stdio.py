@@ -112,6 +112,9 @@ def test_all_8_mcp_tools_over_stdio(tmp_path: Path) -> None:
         if "id" not in msg:
             return None
         line = proc.stdout.readline()
+        if not line:
+            err = proc.stderr.read() if proc.stderr else ""
+            raise AssertionError(f"MCP server exited before responding to {msg.get('method')}; stderr={err!r}")
         return json.loads(line)
 
     try:

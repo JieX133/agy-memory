@@ -14,6 +14,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/dependencies-0%20third--party-0EA5E9?style=flat-square" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/storage-SQLite%20WAL%20%2B%20FTS5-0F80CC?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite FTS5" />
   <img src="https://img.shields.io/badge/LLM%20API%20Keys-0%20Required-16A34A?style=flat-square" alt="Zero LLM API Keys" />
   <img src="https://img.shields.io/badge/license-MIT-475569?style=flat-square" alt="MIT License" />
@@ -21,7 +22,7 @@
 
 **`agy-memory`** is a lightweight, local-first compaction guard and lossless session memory layer for **Google Antigravity** (`Antigravity 2.0` / `agy` CLI).
 
-It runs on pure Python stdlib + local SQLite WAL/FTS5 + a standard stdio MCP server — **zero external LLM API keys, zero cloud accounts, zero background worker daemons**.
+It runs on **100% Python standard library + local SQLite WAL/FTS5** (including its built-in stdio JSON-RPC 2.0 MCP server) — **zero third-party runtime dependencies, zero external LLM API keys, zero cloud accounts, zero background worker daemons**.
 
 ---
 
