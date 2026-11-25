@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agy-memory"
-version = "0.3.1"
+version = "0.3.2"
 description = "Lightweight, zero-dependency, zero-API-key compaction guard and lossless local SQLite FTS5 memory layer for Google Antigravity"
 readme = "README.md"
 license = "MIT"

@@ -42,7 +42,7 @@ def _build_multi_turn_transcript(path: Path, include_cp: bool = True, hit_warn: 
         step += 1
 
         # Intermediate tool call step
-        in_tok = 390_000 if (hit_warn and turn == 15) else 20_000 * turn
+        in_tok = 440_000 if (hit_warn and turn == 15) else 20_000 * turn
         lines.append(
             _make_line(
                 step,
@@ -271,13 +271,16 @@ def test_380k_warning_dedup_and_malformed_stdin_resilience(tmp_path: Path, monke
     t = tmp_path / "warn.jsonl"
     _build_multi_turn_transcript(t, include_cp=False, hit_warn=True)
 
-    # First PreInvocation at 395k tokens -> warns ONCE
+    # First PreInvocation at 445k tokens -> silently checkpoints ONCE, never nudges /compact
     out1 = hook.handle_hook(
         {"conversationId": "warn-1", "workspacePaths": ["/workspace/demo"], "transcriptPath": str(t)},
         forced_event="PreInvocation",
         db_path=db,
     )
-    assert "Context Warning" in out1["injectSteps"][0]["systemMessage"]["systemMessage"]
+    warn_txt = out1["injectSteps"][0]["systemMessage"]["systemMessage"]
+    assert "Pre-Compaction Checkpoint" in warn_txt
+    assert "Do NOT prompt the user to compact" in warn_txt
+    assert "/compact" not in warn_txt
 
     # Second PreInvocation before compaction -> deduped to {}
     out2 = hook.handle_hook(

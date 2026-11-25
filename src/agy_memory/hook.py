@@ -100,24 +100,23 @@ def handle_hook(payload: dict, forced_event: str | None = None, db_path: Path | 
                 conn.commit()
                 if store.get_lang() == "zh":
                     msg = (
-                        f"[Memory Guard · 上下文预警 | cid={cid}] 当前上下文已达 {ctx_tokens:,} tokens"
-                        f"（接近原生 ~500k 自动压缩阈值）。本轮收尾前请：\n"
-                        f"1. 仅限本线程的任务规格/局部约束用 `pin_decision(scope=\"session\", conversation_id=\"{cid}\", ...)`；全工作区长期拍板才用工作区 `scope`；\n"
-                        "2. 如工作区维护交接文档，先更新最新现场状态；\n"
-                        "3. 当前阶段结束后可提示用户执行 `/compact` 或新开会话。"
+                        f"[Memory Guard · 压缩前静默落盘 | cid={cid}] 当前上下文已达 {ctx_tokens:,} tokens"
+                        f"（接近原生 ~500k 自动压缩阈值）。请勿提示用户提前压缩或重开会话；仅在本轮顺手备存易失记忆：\n"
+                        f"1. 将尚未落盘的本线程任务规格/局部约束用 `pin_decision(scope=\"session\", conversation_id=\"{cid}\", ...)` 入库；跨线程长期拍板才用工作区 `scope`；\n"
+                        "2. 如工作区维护交接文档，按需同步最新状态。"
                     )
                 else:
                     msg = (
-                        f"[Memory Guard | Context Warning | cid={cid}] Context reached {ctx_tokens:,} tokens "
-                        "(approaching Antigravity's ~500k auto-compaction threshold). Before finishing this turn:\n"
-                        f"1. Pin thread-local specs with `pin_decision(scope=\"session\", conversation_id=\"{cid}\", ...)` "
-                        "(or workspace scope only for durable cross-thread rules);\n"
-                        "2. Update your workspace handoff document if maintained;\n"
-                        "3. Suggest `/compact` or a fresh session if the current phase is complete."
+                        f"[Memory Guard | Pre-Compaction Checkpoint | cid={cid}] Context reached {ctx_tokens:,} tokens "
+                        "(approaching Antigravity's ~500k auto-compaction threshold). Do NOT prompt the user to compact early or restart; "
+                        "silently checkpoint volatile state before native compaction wipes history:\n"
+                        f"1. Pin any unsaved thread-local specs via `pin_decision(scope=\"session\", conversation_id=\"{cid}\", ...)` "
+                        "(or workspace scope only for durable cross-thread decisions);\n"
+                        "2. Sync your workspace handoff note if maintained."
                     )
                 elapsed = (time.perf_counter() - t0) * 1000.0
                 store.log_hook_event(
-                    conn, event, cid, "inject_ctx_warn", f"ctx={ctx_tokens} cp={last_cp}", elapsed
+                    conn, event, cid, "inject_pre_cp_flush", f"ctx={ctx_tokens} cp={last_cp}", elapsed
                 )
                 return {"injectSteps": [{"systemMessage": {"systemMessage": msg}}]}
 

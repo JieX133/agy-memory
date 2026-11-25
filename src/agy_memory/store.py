@@ -82,9 +82,9 @@ def get_summaries_db_path() -> Path:
 
 def get_warn_ctx_tokens() -> int:
     try:
-        return max(50_000, int(os.environ.get("AGY_WARN_CTX_TOKENS", "380000")))
+        return max(50_000, int(os.environ.get("AGY_WARN_CTX_TOKENS", "430000")))
     except ValueError:
-        return 380_000
+        return 430_000
 
 
 def get_lang() -> str:

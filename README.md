@@ -34,7 +34,7 @@ Auditing **19 automatic compactions** across **4 long-horizon production session
 | --- | --- | --- | --- |
 | **1. Hard 10-turn user-request eviction** | 100% of sessions > 10 turns dropped earlier verbatim requests | `# User Requests` hard-caps at the last 10 user turns | Incremental byte-offset SQLite ledger preserves all turns and prioritizes evicted declarative constraints |
 | **2. Complete loss of assistant replies** | `0/6` to `0/5` key points survived for recent Q&A discussions right before compaction | Native `CHECKPOINT` wipes 100% of `PLANNER_RESPONSE` history and summarizes into a coding-progress template (80%+ code/steps, 0% Q&A section) | Captures final user-facing replies (`tool_calls == []`), distills conclusions/options deterministically, and restores the last 4 Q&A pairs + verbatim `step` pointers |
-| **3. Late 500k cliff & missing `PreCompact` hook** | Main compactions fired at median `508,690` tokens (`10/13` full prompt-cache resets); `0` manual `/compact` runs | Antigravity hooks (`SessionStart`, `PreInvocation`, `PostInvocation`, `PreToolUse`, `PostToolUse`, `Stop`) do not expose a `PreCompact` event | `PreInvocation` tracks `input_tokens + cache_read_tokens` and injects a one-time flush warning at `380k` tokens (configurable) |
+| **3. Sudden 500k compaction without `PreCompact` hook** | Main compactions fired at median `508,690` tokens (`10/13` full prompt-cache resets) with zero warning | Antigravity hooks (`SessionStart`, `PreInvocation`, `PostInvocation`, `PreToolUse`, `PostToolUse`, `Stop`) do not expose a `PreCompact` event | `PreInvocation` tracks token usage and triggers a silent state-checkpoint reminder at `430k` tokens (configurable) — **never nudging early `/compact`** |
 | **4. Post-compaction path hallucinations & re-read storms** | Up to `12/12` (100%) immediate file re-reads within 60 steps; non-existent paths guessed on step +1 | Summarizer flattens directory trees and drops verified file paths | Tracks every `write_file`/`edit_file`/`read_file` path per session and injects compact verified path anchors |
 | **5. Dead cross-session recall** | Native `conversation_summaries.db` (SQLite FTS5) is never exposed to the agent | No built-in MCP search tool over local transcripts or structured decisions | Exposes 8 stdio MCP tools querying both `agy_memory.db` and Antigravity's native `conversation_summaries.db` FTS5 index |
 
@@ -116,14 +116,14 @@ python benchmarks/run_benchmark.py
 | **Steady-state `PreInvocation` hook (full subprocess, Windows Python 3.14)** | **107.68 ms** | Includes OS process + Python startup; returns `{}` |
 | **Main session cold-start injection** | **537 chars** (`13.19 ms`) | Incremental workspace decisions only; no `handoff.md` duplication |
 | **Subagent cold-start injection** | **0 chars** (`7.24 ms`) | Deterministic `step 0` detection; zero context dilution |
-| **380k pre-compaction warning** | **461 chars** (`21.07 ms`) | Fired once per compaction cycle; resets cleanly on `CHECKPOINT` |
+| **430k silent pre-compaction checkpoint** | **504 chars** (`19.89 ms`) | Silently saves unsaved specs before ~500k; never prompts user to `/compact` early |
 | **Post-compaction recovery packet** | **3,700 chars** (`37.82 ms`) | Bounded size; fired once per `CHECKPOINT` |
 | **Recent Q&A assistant reply recall** | **3 / 3 (100%)** | Recovers options & conclusions wiped by native `CHECKPOINT` |
 | **Evicted early veto recall (> 10 turns ago)** | **2 / 2 (100%)** | Prioritizes declarative constraints over routine turns |
 | **Thread-private pin recovered on own compaction** | **Yes (`true`)** | `scope="session"` restored on Thread A |
 | **Cross-thread leakage to parallel Thread B** | **0 (`false`)** | Thread B in same workspace sees 0 bytes of Thread A's private pin |
 
-> **Live production observation (anonymized):** In real daily Antigravity 2.0 usage on Windows, `Stop` sync events complete in `4.2–41 ms`, subagent startup skips complete in `~5.0 ms`, and real-session `380k` context warnings trigger cleanly in `~41.8 ms`.
+> **Live production observation (anonymized):** In real daily Antigravity 2.0 usage on Windows, `Stop` sync events complete in `4.2–41 ms`, subagent startup skips complete in `~5.0 ms`, and pre-compaction checkpoint hooks trigger cleanly in `~41.8 ms`.
 
 ---
 
@@ -161,7 +161,7 @@ Add these 4 lines so your agent uses the MCP tools proactively:
 ```markdown
 ## Session Memory & Compaction Discipline
 - Pin thread-local specs with `pin_decision(scope="session", conversation_id="<cid>")`; pin durable cross-thread workspace decisions (not already in `GEMINI.md`/`AGENTS.md`) with workspace `scope`. Retire superseded IDs via `retire_decision`.
-- On `[Memory Guard | Context Warning]`, pin active decisions and update workspace handoff notes before finishing the turn.
+- On `[Memory Guard | Pre-Compaction Checkpoint]`, do NOT ask the user to compact early; silently pin any unsaved specs/decisions before native ~500k compaction occurs.
 - On `[Memory Guard | Post-Compaction Recovery]`, obey verified file paths and call `search_transcript` / `get_transcript_steps` whenever exact pre-compaction text is needed.
 - To recall prior conversations without pasting UUIDs, call `search_sessions` / `get_session_brief`.
 ```
@@ -174,7 +174,7 @@ Add these 4 lines so your agent uses the MCP tools proactively:
 | `AGY_MEMORY_DB` | `<AGY_MEMORY_HOME>/agy_memory.db` | Explicit SQLite DB path override |
 | `AGY_BRAIN_DIR` | `~/.gemini/antigravity/brain` | Antigravity transcripts root |
 | `AGY_SUMMARIES_DB` | `~/.gemini/antigravity/conversation_summaries.db` | Native Antigravity FTS5 summaries DB |
-| `AGY_WARN_CTX_TOKENS` | `380000` | Token threshold for one-time pre-compaction flush warning |
+| `AGY_WARN_CTX_TOKENS` | `430000` | Token threshold for silent pre-compaction checkpoint reminder (never nudges early `/compact`) |
 | `AGY_MEMORY_LANG` | `en` | Injected packet header language (`en` or `zh`) |
 
 ---
